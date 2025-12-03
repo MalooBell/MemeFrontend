@@ -26,4 +26,9 @@ export const memeService = {
     });
     return response.data.data;
   },
+
+  deleteMeme: async (id) => {
+    const response = await api.delete(`/${id}`);
+    return response.data;
+  }
 };

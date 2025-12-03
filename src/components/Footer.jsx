@@ -9,7 +9,7 @@ const Footer = () => {
         
         {/* Signature Principale */}
         <p className="flex items-center gap-2 text-gray-700 font-medium text-lg">
-          Développé avec par 
+          Développé par 
           <span className="font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-violet-600">
             MALOO BELL Loïck Michel
           </span>
