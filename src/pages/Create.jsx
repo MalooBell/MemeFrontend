@@ -1,13 +1,22 @@
 import { useState, useRef, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom'; // Ajout useLocation
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Stage, Layer, Image as KonvaImage, Text, Transformer } from 'react-konva';
-import { Upload, Type, Trash2, Send, Save } from 'lucide-react'; // Ajout Save si besoin
+import { Upload, Type, Trash2, Bold, Italic, AlignLeft, AlignCenter, AlignRight } from 'lucide-react';
 import { memeService } from '../services/api';
-import LoadingSpinner from '../components/LoadingSpinner';
 import Toast from '../components/Toast';
+import LoadingSpinner from '../components/LoadingSpinner';
+
+// Liste des polices disponibles
+const FONT_FAMILIES = [
+  { name: 'Impact', value: 'Impact, sans-serif' },
+  { name: 'Arial', value: 'Arial, sans-serif' },
+  { name: 'Comic Sans', value: '"Comic Sans MS", cursive, sans-serif' },
+  { name: 'Courier New', value: '"Courier New", monospace' },
+  { name: 'Times New Roman', value: '"Times New Roman", serif' },
+  { name: 'Verdana', value: 'Verdana, sans-serif' },
+];
 
 const Create = () => {
-  // Récupération de l'état si on vient de la galerie (mode édition)
   const location = useLocation();
   const editImageSrc = location.state?.imageUrl;
 
@@ -26,11 +35,10 @@ const Create = () => {
   const CANVAS_WIDTH = 600;
   const CANVAS_HEIGHT = 600;
 
-  // Charger l'image si on vient du bouton "Éditer"
   useEffect(() => {
     if (editImageSrc) {
       const img = new window.Image();
-      img.crossOrigin = "Anonymous"; // Important pour éviter le canvas tainted
+      img.crossOrigin = "Anonymous";
       img.src = editImageSrc;
       img.onload = () => setImage(img);
     }
@@ -64,7 +72,6 @@ const Create = () => {
     }
   };
 
-  // --- CORRECTION BORDURES : Désélectionner quand on clique dans le vide ---
   const checkDeselect = (e) => {
     const clickedOnEmpty = e.target === e.target.getStage();
     if (clickedOnEmpty) {
@@ -81,11 +88,14 @@ const Create = () => {
       fontSize: 32,
       fill: '#FFFFFF',
       rotation: 0,
+      align: 'center', // Alignement par défaut
       stroke: '#000000',
       strokeWidth: 2,
+      fontFamily: 'Impact, sans-serif',
+      fontStyle: 'normal',
     };
     setTexts([...texts, newText]);
-    setSelectedId(newText.id); // Sélectionne le nouveau texte
+    setSelectedId(newText.id);
   };
 
   const handlePublish = async () => {
@@ -100,11 +110,8 @@ const Create = () => {
 
     try {
       setLoading(true);
-      
-      // --- CORRECTION CRITIQUE : On désélectionne tout avant la photo ---
       setSelectedId(null);
       
-      // Petit délai pour laisser React mettre à jour l'état (enlever les bordures)
       setTimeout(async () => {
           const uri = stageRef.current.toDataURL();
           const blob = await (await fetch(uri)).blob();
@@ -127,6 +134,32 @@ const Create = () => {
 
   const updateText = (id, newAttrs) => {
     setTexts(texts.map((t) => (t.id === id ? { ...t, ...newAttrs } : t)));
+  };
+
+  const toggleFontStyle = (styleToToggle) => {
+    if (!selectedText) return;
+    
+    let currentStyle = selectedText.fontStyle || 'normal';
+    let newStyle = 'normal';
+
+    const isBold = currentStyle.includes('bold');
+    const isItalic = currentStyle.includes('italic');
+
+    if (styleToToggle === 'bold') {
+      if (isBold) {
+        newStyle = isItalic ? 'italic' : 'normal';
+      } else {
+        newStyle = isItalic ? 'bold italic' : 'bold';
+      }
+    } else if (styleToToggle === 'italic') {
+      if (isItalic) {
+        newStyle = isBold ? 'bold' : 'normal';
+      } else {
+        newStyle = isBold ? 'bold italic' : 'italic';
+      }
+    }
+    
+    updateText(selectedText.id, { fontStyle: newStyle });
   };
 
   const selectedText = texts.find((t) => t.id === selectedId);
@@ -158,8 +191,8 @@ const Create = () => {
                   ref={stageRef}
                   width={CANVAS_WIDTH}
                   height={CANVAS_HEIGHT}
-                  onMouseDown={checkDeselect} // Gère le clic souris
-                  onTouchStart={checkDeselect} // Gère le tactile
+                  onMouseDown={checkDeselect}
+                  onTouchStart={checkDeselect}
                   className="border border-gray-300 shadow-inner"
                 >
                   <Layer>
@@ -193,46 +226,135 @@ const Create = () => {
 
             {image && (
               <>
-                <button onClick={addText} className="w-full btn-primary flex items-center justify-center gap-2 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                <button onClick={addText} className="w-full btn-primary flex items-center justify-center gap-2 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold">
                     <Type size={18} /> Ajouter Texte
                 </button>
 
                 {selectedText && (
-                    <div className="p-4 bg-gray-50 rounded-lg space-y-4 border">
-                        <p className="text-xs font-bold text-gray-500 uppercase">Édition Texte</p>
+                    <div className="p-4 bg-gray-50 rounded-lg space-y-4 border border-gray-200 shadow-sm animate-in fade-in slide-in-from-bottom-2">
+                        <div className="flex justify-between items-center border-b pb-2">
+                           <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Édition</p>
+                           <button 
+                                onClick={() => {
+                                    setTexts(texts.filter(t => t.id !== selectedId));
+                                    setSelectedId(null);
+                                }}
+                                className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1.5 rounded transition-colors"
+                                title="Supprimer"
+                            >
+                                <Trash2 size={16} />
+                            </button>
+                        </div>
+
                         <textarea 
                             value={selectedText.text} 
                             onChange={(e) => updateText(selectedText.id, { text: e.target.value })}
-                            className="w-full p-2 border rounded"
+                            className="w-full p-2 border rounded focus:ring-1 focus:ring-blue-500 outline-none text-sm min-h-[80px]"
+                            placeholder="Votre texte ici..."
                         />
-                        <div className="flex gap-2">
+
+                        <div className="space-y-1">
+                            <label className="text-xs text-gray-500 font-medium">Police</label>
+                            <select 
+                                value={selectedText.fontFamily}
+                                onChange={(e) => updateText(selectedText.id, { fontFamily: e.target.value })}
+                                className="w-full p-2 border rounded bg-white text-sm focus:ring-1 focus:ring-blue-500 outline-none"
+                            >
+                                {FONT_FAMILIES.map((font) => (
+                                    <option key={font.name} value={font.value}>{font.name}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* Styles et Alignement */}
+                        <div className="flex flex-col gap-2">
+                            {/* Ligne Gras / Italique / Couleur */}
+                            <div className="flex items-center gap-2">
+                                <button 
+                                    onClick={() => toggleFontStyle('bold')}
+                                    className={`p-2 rounded border transition-colors ${selectedText.fontStyle?.includes('bold') ? 'bg-blue-100 border-blue-300 text-blue-700' : 'bg-white hover:bg-gray-100 text-gray-600'}`}
+                                    title="Gras"
+                                >
+                                    <Bold size={18} />
+                                </button>
+                                <button 
+                                    onClick={() => toggleFontStyle('italic')}
+                                    className={`p-2 rounded border transition-colors ${selectedText.fontStyle?.includes('italic') ? 'bg-blue-100 border-blue-300 text-blue-700' : 'bg-white hover:bg-gray-100 text-gray-600'}`}
+                                    title="Italique"
+                                >
+                                    <Italic size={18} />
+                                </button>
+                                
+                                <div className="flex-1 h-10 relative group">
+                                    <input 
+                                        type="color" 
+                                        value={selectedText.fill}
+                                        onChange={(e) => updateText(selectedText.id, { fill: e.target.value })}
+                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                    />
+                                    <div 
+                                        className="w-full h-full rounded border flex items-center justify-center text-xs text-gray-500 bg-white"
+                                        style={{ borderBottom: `4px solid ${selectedText.fill}` }}
+                                    >
+                                        Couleur
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Ligne Alignement */}
+                            <div className="flex items-center gap-1 bg-gray-200 p-1 rounded-md justify-between">
+                                <button 
+                                    onClick={() => updateText(selectedText.id, { align: 'left' })}
+                                    className={`flex-1 p-1.5 rounded flex justify-center transition-colors ${selectedText.align === 'left' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-600 hover:bg-gray-300'}`}
+                                    title="Aligner à gauche"
+                                >
+                                    <AlignLeft size={16} />
+                                </button>
+                                <button 
+                                    onClick={() => updateText(selectedText.id, { align: 'center' })}
+                                    className={`flex-1 p-1.5 rounded flex justify-center transition-colors ${selectedText.align === 'center' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-600 hover:bg-gray-300'}`}
+                                    title="Centrer"
+                                >
+                                    <AlignCenter size={16} />
+                                </button>
+                                <button 
+                                    onClick={() => updateText(selectedText.id, { align: 'right' })}
+                                    className={`flex-1 p-1.5 rounded flex justify-center transition-colors ${selectedText.align === 'right' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-600 hover:bg-gray-300'}`}
+                                    title="Aligner à droite"
+                                >
+                                    <AlignRight size={16} />
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="space-y-1">
+                            <div className="flex justify-between">
+                                <label className="text-xs text-gray-500 font-medium">Taille</label>
+                                <span className="text-xs text-gray-400">{selectedText.fontSize}px</span>
+                            </div>
                             <input 
-                                type="color" 
-                                value={selectedText.fill}
-                                onChange={(e) => updateText(selectedText.id, { fill: e.target.value })}
-                                className="h-10 w-10 rounded cursor-pointer"
-                            />
-                            <input 
-                                type="range" min="10" max="100" 
+                                type="range" min="10" max="150" 
                                 value={selectedText.fontSize}
                                 onChange={(e) => updateText(selectedText.id, { fontSize: parseInt(e.target.value) })}
-                                className="flex-1"
+                                className="w-full accent-blue-600 h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer"
                             />
                         </div>
-                        <button 
-                            onClick={() => {
-                                setTexts(texts.filter(t => t.id !== selectedId));
-                                setSelectedId(null);
-                            }}
-                            className="w-full flex items-center justify-center gap-2 text-red-500 hover:bg-red-50 p-2 rounded"
-                        >
-                            <Trash2 size={16} /> Supprimer ce texte
-                        </button>
                     </div>
                 )}
 
-                <button onClick={handlePublish} disabled={loading} className="w-full py-4 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 shadow-lg transform hover:scale-[1.02] transition-all">
-                    {loading ? "Création..." : "PUBLIER LE MÈME 🚀"}
+                <button 
+                    onClick={handlePublish} 
+                    disabled={loading} 
+                    className={`w-full py-4 text-white font-bold rounded-lg shadow-lg transform transition-all ${loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 hover:scale-[1.02]'}`}
+                >
+                    {loading ? (
+                        <div className="flex items-center justify-center gap-2">
+                            <LoadingSpinner size="sm" text="" />
+                            <span>Publication...</span>
+                        </div>
+                    ) : (
+                        "PUBLIER LE MÈME 🚀"
+                    )}
                 </button>
               </>
             )}
@@ -243,7 +365,6 @@ const Create = () => {
   );
 };
 
-// Composant interne pour le texte et le transformateur
 const TextElement = ({ shapeProps, isSelected, onSelect, onChange }) => {
   const shapeRef = useRef();
   const trRef = useRef();
@@ -273,7 +394,7 @@ const TextElement = ({ shapeProps, isSelected, onSelect, onChange }) => {
         onTransformEnd={(e) => {
           const node = shapeRef.current;
           const scaleX = node.scaleX();
-          node.scaleX(1); // Reset scale pour ne changer que le fontSize
+          node.scaleX(1);
           node.scaleY(1);
           onChange({
             ...shapeProps,
@@ -281,6 +402,8 @@ const TextElement = ({ shapeProps, isSelected, onSelect, onChange }) => {
             y: node.y(),
             fontSize: Math.max(5, node.fontSize() * scaleX),
             rotation: node.rotation(),
+            // Nous ne mettons pas à jour la largeur (width) ici pour laisser le texte
+            // s'adapter, mais l'alignement fonctionnera si le texte est sur plusieurs lignes.
           });
         }}
       />
